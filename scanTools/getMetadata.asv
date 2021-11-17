@@ -5,10 +5,14 @@ function [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,varargin)
 % OUTPUTS:
 %   mSumm is a stucture of metadata associated with the entire file:
 %
+%
+%
 %  Tstacks is a table of metadata, where each row is associated with each XYposition-channel combination
 %
-%  Tplanes (only output if 'quickMode' is false) is a table of metadata, where each row is associated with each XYposition-channel-Zplane combination
-% 
+%
+%
+%
+%  Tplanes (only 
 %
 % OPTIONAL NAME-VALUE ARGUMENTS:
 %   quickMode
@@ -27,9 +31,9 @@ function [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,varargin)
 %   [mSumm,Tstacks]=getMetadata('myND2filename.nd2')
 %
 % EXAMPLE 2:
-%   get Tplanes data, one row for each z plane (takes longer)
-%   
-%   [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,'quickMode',false)
+%   get 
+% [mSumm,Tstacks]=getMetadata(ND2filenameORreader)
+% [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,'quickMode',false)
 % 
 ip=inputParser;
 ip.addParameter('closeReaderAfterGettingPlane',true,@islogical)
