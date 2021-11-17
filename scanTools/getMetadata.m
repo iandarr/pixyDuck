@@ -2,9 +2,34 @@ function [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,varargin)
 % gets some OME metadata associated with an ND2 file.
 % needs bioformats for matlab https://www.openmicroscopy.org/bio-formats/
 %
-% OUTPUTS:
-%   mSumm is a stucture of metadata associated with the entire file:
+% ---------------------- OUTPUTS ---------------------- 
+%   mSumm is a stucture of metadata associated with the entire file,
+%   including X & Y positions of each of the 1st planes in the stacks:
 %
+% mSumm = 
+% 
+%   struct with fields:
+% 
+%                                    numStacks: 507
+%                                 numZPerStack: 1
+%                             numTimesPerStack: 1
+%                                      zStepUm: 0
+%                            numPlanesPerStack: 10
+%                                   umPerPixel: 0.3246
+%                                   numImgRows: 2044
+%                                   numImgCols: 2048
+%                                  numChannels: 10
+%                 channelInfoReferenceStackNum: 1
+%                                 channelNames: {'DAPI'  'YFP'  'CY3'  'CY3_1'  'CY3_2'  'A594'  'A594_1'  'A594_2'  'CY5'  'CY5_1'}
+%                       channelExposureTimesMs: [50 100 250 500 1000 250 500 1000 100 250]
+%     firstZplaneWithCompleteSetOfChannelNames: 1
+%                                            X: [507×1 double]
+%                                            Y: [507×1 double]
+%                                 channelForXY: 'DAPI'
+%                                  iPlaneForXY: 1
+%                               dimensionOrder: 'XYCZT'
+%
+% 
 %  Tstacks is a table of metadata, where each row is associated with each XYposition-channel combination
 %
 %  Tplanes (only output if 'quickMode' is false) is a table of metadata, where each row is associated with each XYposition-channel-Zplane combination
