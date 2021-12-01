@@ -58,7 +58,8 @@ fprintf('registerControlPoints: Registering fixedRound=%i, moveRound=%i\n',fixed
         numAdditionalPoints=numControlPointsPerRegistration - size(cpTilePairsList,1);
         % ind=selectSpreadOutPoints(XYall,numAdditional,indSelected)
         indEligible_New=selectSpreadOutPoints(stageXY_move_Eligible_WithInitialGuessTform,numAdditionalPoints,indEligible4Corners);
-        cpTilePairsList=[iTileEligible_move(indEligible_New),iTileEligible_fixed(indEligible_New)];
+        %cpTilePairsList=[iTileEligible_move(indEligible_New),iTileEligible_fixed(indEligible_New)];
+        cpTilePairsList=[iTileEligible_fixed(indEligible_New),iTileEligible_move(indEligible_New)]; % 28-nov-2021
         
     elseif numControlPointsPerRegistration<size(cpTilePairsList,1)
         % trim to fewer pairs
