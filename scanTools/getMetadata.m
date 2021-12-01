@@ -1,18 +1,61 @@
-function [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,varargin)
-% gets OME metadata associated with an ND2 file. Only grabs the metadata we
-% mainMetadata output is a struct
-%
-% are interested in
-%
+function [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,varargin) 
+% gets some OME metadata associated with an ND2 file.
 % needs bioformats for matlab https://www.openmicroscopy.org/bio-formats/
 %
-% OPTIONAL NAME-VALUE ARGUMENTS:
-%   'quickMode', true
-%       returns Tplanes=[], since it does not cycle through every plane in
-%       the ND2 file. It still cycles through all planes in the first stack
-% 
-%   input 'quickMode',false to return full Tplanes table (takes longer)
+% ---------------------- OUTPUTS ---------------------- 
+%   mSumm is a stucture of metadata associated with the entire file,
+%   including X & Y positions of each of the 1st planes in the stacks:
 %
+% mSumm = 
+% 
+%   struct with fields:
+% 
+%                                    numStacks: 507
+%                                 numZPerStack: 1
+%                             numTimesPerStack: 1
+%                                      zStepUm: 0
+%                            numPlanesPerStack: 10
+%                                   umPerPixel: 0.3246
+%                                   numImgRows: 2044
+%                                   numImgCols: 2048
+%                                  numChannels: 10
+%                 channelInfoReferenceStackNum: 1
+%                                 channelNames: {'DAPI'  'YFP'  'CY3'  'CY3_1'  'CY3_2'  'A594'  'A594_1'  'A594_2'  'CY5'  'CY5_1'}
+%                       channelExposureTimesMs: [50 100 250 500 1000 250 500 1000 100 250]
+%     firstZplaneWithCompleteSetOfChannelNames: 1
+%                                            X: [507×1 double]
+%                                            Y: [507×1 double]
+%                                 channelForXY: 'DAPI'
+%                                  iPlaneForXY: 1
+%                               dimensionOrder: 'XYCZT'
+%
+% 
+%  Tstacks is a table of metadata, where each row is associated with each XYposition-channel combination
+%
+%  Tplanes (only output if 'quickMode' is false) is a table of metadata, where each row is associated with each XYposition-channel-Zplane combination
+% 
+%
+% OPTIONAL NAME-VALUE ARGUMENTS:
+%   quickMode
+%   true (default) | false
+%   
+%       when true, returns Tplanes=[], since it does not cycle through every plane in
+%       the ND2 file. It still cycles through all planes in the first
+%       stack. When false, Tplanes is a table where each row is a
+%       XYposition-channel-plane combination
+%
+% EXAMPLE 1:
+%   get file-level metadata, where each row is a XYposition-channel
+%   combination. If you have Z-stacks, this metadata is associated with the
+%   first plane in the stack.
+%
+%   [mSumm,Tstacks]=getMetadata('myND2filename.nd2')
+%
+% EXAMPLE 2:
+%   get Tplanes data, one row for each z plane (takes longer)
+%   
+%   [mSumm,Tstacks,Tplanes]=getMetadata(ND2filenameORreader,'quickMode',false)
+% 
 ip=inputParser;
 ip.addParameter('closeReaderAfterGettingPlane',true,@islogical)
 ip.addParameter('quickMode',true,@islogical)
