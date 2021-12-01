@@ -184,8 +184,8 @@ for subregionIndex=subregionIndicesToStitch
             
             % convert to rscan to subregion coordinates (make Tsubregion_overlapTiles)
             Tsubregion_overlapTiles=table(); Tsubregion_overlapTiles.tileID=Trscan_overlapTiles.tileID;
-            Tsubregion_overlapTiles{:,{'TopRow','BottomRow'}}=Trscan_overlapTiles{:,{'TopRow','BottomRow'}} - sAllR(iResStitch).rscan_subregion_TopRow  + 1;
-            Tsubregion_overlapTiles{:,{'LeftCol','RightCol'}}=Trscan_overlapTiles{:,{'LeftCol','RightCol'}} - sAllR(iResStitch).rscan_subregion_LeftCol + 1;
+            Tsubregion_overlapTiles{:,{'TopRow','BottomRow'}}=round(Trscan_overlapTiles{:,{'TopRow','BottomRow'}} - sAllR(iResStitch).rscan_subregion_TopRow  + 1);
+            Tsubregion_overlapTiles{:,{'LeftCol','RightCol'}}=round(Trscan_overlapTiles{:,{'LeftCol','RightCol'}} - sAllR(iResStitch).rscan_subregion_LeftCol + 1);
             Tsubregion_overlapTiles{:,{'numRows','numCols'}}=Tsubregion_overlapTiles{:,{'BottomRow','RightCol'}} - Tsubregion_overlapTiles{:,{'TopRow','LeftCol'}} + 1;
             
             % store in s
