@@ -23,7 +23,7 @@ ip.addParameter('scaleBarPanels',[],@(x) validateattributes(x,{'numeric','vector
 
 
 %% inputs to be passed to mergeImgsToRGB
-ip.addParameter('zplanes','all',@(x)or(strcmp('all',x),ismatrix(x)));
+ip.addParameter('zplanes','all',@(x)or(strcmp('all',x),ismatrix(x),iscell(x)));
 ip.addParameter('scalingMinMax',{},@iscell)
 ip.addParameter('alphaList',[],@iscell)
 ip.addParameter('boundingbox',[],@(x) (isnumeric(x) && isequal(size(x),[1 4])) || (iscell(x) && isvector(x)))
