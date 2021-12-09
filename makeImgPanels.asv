@@ -8,7 +8,7 @@ ip.addParameter('segmentationImgs',[],@(x) (iscell(x) && (size(x,1)==1)) || isch
 
 %% inputs related to the whole figure
 ip.addParameter('outFile','imagePanel',@ischar);
-ip.addParameter('rotateDegrees',[],@iscell);
+ip.addParameter('rotateDegrees',[],@ischar);
 ip.addParameter('layoutMatrix',[],@(x) isnumeric(x));
 ip.addParameter('inPanelLabels',[],@(x) iscell(x) || all(ismember(x,{'none'})));
 ip.addParameter('fontSize',8,@(x) validateattributes(x,{'numeric'},{'scalar','>=',0}));
@@ -70,7 +70,7 @@ maxNumImgsPerPanel=size(imgFiles,1);
 if isempty(rotateDegrees)
     rotateDegrees=num2cell(zeros(1,numImgPanels));
 else
-    assert(all(cellfun(@(x) isnumeric(x),rotateDegrees)))
+    assert(all(cellfun(@
 end
 
 % outColors
