@@ -47,9 +47,10 @@ function [imgMergedOut,scalingMinMaxList]=mergeImgsToRGB(imgInputList,outColors,
 p = inputParser;
 %p.addRequired('imgInputList',@iscell);
 %p.addRequired('outColors',@iscell);
-p.addParameter('zplanes','all',@(x)or(strcmp('all',x),ismatrix(x)));
+p.addParameter('zplanes','all',@(x) any([strcmp('all',x),ismatrix(x),iscell(x)]));
 p.addParameter('scalingMinMax',{},@iscell)
-p.addParameter('alphaList',{})
+p.addParameter('gamma',{})
+p.addParameter('alpha',{})
 p.addParameter('boundingbox',[])
 p.addParameter('convertTo',[],@(x) isempty(x) || ismember(lower(x),{'uint16','uint8'}))
 %p.addParameter('zplanes','max',@ischar)
@@ -57,18 +58,10 @@ p.parse(varargin{:});
 scalingMinMaxInput=p.Results.scalingMinMax;
 zplanesInput=p.Results.zplanes;
 boundingboxInput=p.Results.boundingbox;
-alphaListInput=p.Results.alphaList;
+gammaListInput=p.Results.gamma;
+alphaListInput=p.Results.alpha;
 convertTo=p.Results.convertTo;
 
-
-%% zplanes
-if ischar(zplanesInput)&&strcmp(zplanesInput,'all')
-    % that's fine
-elseif  isnumeric(zplanesInput)&& all(rem(zplanesInput,1)==0) && size(zplanesInput,1)==1
-    % also fine
-else
-    error('zplanes input is not supported')
-end
 
 
 
@@ -76,7 +69,26 @@ end
 assert(iscell(imgInputList));
 nImgs=length(imgInputList);
 
-img1pList=cell(nImgs,1);
+%% zplanes
+% make it nImgsx1 cell array if it isn't already
+if ischar(zplanesInput)
+    zplanes={zplanesInput};
+elseif isnumeric(zplanesInput)
+    if all(rem(zplanesInput,1)==0) && size(zplanesInput,1)==1
+        zplanes={zplanesInput};
+    else
+        error('if input zplanes is numeric it should be 1xN (row vector) of whole numbers')
+    end
+end
+
+if length(zplanes)==1
+    zplanes=repmat(zplanes,nImgs,1);
+elseif size(zplanes,1)~=nImgs || size(zplanes,2)~=1
+    error('input zplanes should be a cell array of size nImgsx1 (columb vector), but it is has size %i x %i',size(zplanes,1), size(zplanes,2))
+end
+
+%% get imgListCurrent from files (or as matrices input) and take max merge
+imgListCurrent=cell(nImgs,1);
 
 for iImg=1:nImgs
     thisImgInput=imgInputList{iImg};
@@ -88,15 +100,8 @@ for iImg=1:nImgs
         if isfile(thisImgInput)
             % then read the image. which zplanes
             numZplanesInImage=length(imfinfo(thisImgInput));
-            if strcmp(zplanesInput,'all')
-                zplanesToGet=1:numZplanesInImage;
-            else
-                zplanesToGet=zplanesInput;
-            end
-            
-            if max(zplanesToGet)>numZplanesInImage
-                error("the largest zplane that we're attempting to access (%i) is greater than number of planes in the image (%i)",max(zplanesToGet),numZplanesInImage)
-            end
+
+            zplanesToGet=parseZplanes(zplanes{iImg},numZplanesInImage);
             
             for zplane=zplanesToGet
                 if isempty(boundingboxInput) % no bounding box
@@ -120,7 +125,7 @@ for iImg=1:nImgs
             error('could not find file %s\n',thisImgInput)
         end
         
-    elseif ismatrix(thisImgInput)
+    elseif ismatrix(thisImgInput) % the image was provided
         if ~isempty(boundingboxInput)
             checkBoundingBoxInput(boundingboxInput)
             thisImgInput=imcrop(thisImgInput,boundingboxInput);
@@ -128,37 +133,28 @@ for iImg=1:nImgs
         
         
         numZplanesInImage=size(thisImgInput,3);
-        if numZplanesInImage==1
-            img1p=thisImgInput;
-        else% need to take a certain plane or max merge of planes
-            if strcmp(zplanesInput,'all')
-                zplanesToGet=1:numZplanesInImage;
-            else
-                zplanesToGet=zplanesInput;
-            end
-            
-            if max(zplanesToGet)>numZplanesInImage
-                error("the largest zplane that we're attempting to access (%i) is greater than number of planes in the image (%i)",max(zplanesToGet),numZplanesInImage)
-            end
-            img1p=max(thisImgInput(:,:,zplanesToGet),[],3);
-        end
+        zplanesToGet=parseZplanes(zplanes{iImg},numZplanesInImage);
+        
+        img1p=max(thisImgInput(:,:,zplanesToGet),[],3);
+        %end
     end
     
     % now we have img1p, store it
-    img1pList{iImg}=img1p;
+    imgListCurrent{iImg}=img1p;
 end
 
-imHeight=size(img1pList{1},1);
-imWidth=size(img1pList{1},2);
+imHeight=size(imgListCurrent{1},1);
+imWidth=size(imgListCurrent{1},2);
 
 for iImg=1:nImgs
-    if ~isequal(size(img1pList{iImg}),[imHeight imWidth])
+    if ~isequal(size(imgListCurrent{iImg}),[imHeight imWidth])
         error('all images must be same size')
     end
 end
 
 
-imgListCurrent=img1pList;
+%imgListCurrent=img1pList;
+%clear('img1pList')
 
 %% check over optional scaling input and make scalingMinMax
 assert(iscell(scalingMinMaxInput));
@@ -167,7 +163,7 @@ scalingMinMaxList=nan(nImgs,2); %what we will fill in
 if isempty(scalingMinMaxInput)
     scalingMinMaxInput=cell(nImgs,1);
     for iImg=1:nImgs
-        thisImgIntmax=intmax(class(img1pList{iImg})); % for uint16 be 65535
+        thisImgIntmax=intmax(class(imgListCurrent{iImg})); % for uint16 be 65535
         scalingMinMaxList(iImg,1:2)=[0 thisImgIntmax]; 
     end
     
@@ -211,7 +207,7 @@ else
                 thisScalingMinMaxInput(1)=0;
             end
             if isnan(thisScalingMinMaxInput(2))
-                thisScalingMinMaxInput(2)=intmax(class(img1pList{iImg})); % for uint16 be 65535
+                thisScalingMinMaxInput(2)=intmax(class(imgListCurrent{iImg})); % for uint16 be 65535
             end
             scalingMinMaxList(iImg,1:2)=thisScalingMinMaxInput;
         end
@@ -221,13 +217,11 @@ end
 
 
 %% rescale images to 0 to 1
-imgListCurrent=img1pList;
-imgRescaledList=cell(nImgs,1);
+%imgRescaledList=cell(nImgs,1);
 
 for iImg=1:nImgs
     
-    thisImg=imgListCurrent{iImg};
-    if ~isa(thisImg,'uint16')
+    if ~isa(imgListCurrent{iImg},'uint16')
         error('only handles uint16 class')
     end
     
@@ -235,13 +229,43 @@ for iImg=1:nImgs
     maxValue=scalingMinMaxList(iImg,2);
     assert(all([minValue>=0,minValue<=maxValue,maxValue<=65535]))
     
-    thisImgRescaled=rescale(thisImg,'InputMin',minValue,'InputMax',maxValue);
-    imgRescaledList{iImg}=thisImgRescaled;
+    imgListCurrent{iImg}=rescale(imgListCurrent{iImg},'InputMin',minValue,'InputMax',maxValue);
 end
 
-imgListCurrent=imgRescaledList;
+%imgListCurrent=imgRescaledList;
+%clear('imgRescaledList')
+
+%% get gammaList and transform imgListCurrent with it if gamma~=1
+gammaList=nan(nImgs,1);
+if isempty(gammaListInput)
+    gammaList=ones(nImgs,1);
+elseif (length(gammaListInput)==nImgs)&&isnumeric(gammaListInput)
+    gammaList=gammaListInput;
+    if ~all(gammaList>0)
+        error('all gamma provided must be >0')
+    end
+else
+    error('provided gammaList is invalid. should be numeric 1 x nImgs')
+end
+
+if any(gammaList~=1)
+    for iImg=1:nImgs
+        if gammaList(iImg)~=1
+            imgListCurrent{iImg} = imgListCurrent{iImg}.^gammaList(iImg); % imgListCurrent is already scaled 0 to 1
+        end
+    end
+end
 
 
+%% get alphaList, which is the relative weighting of each image. Preference is not to use this.
+alphaList=nan(nImgs,1);
+if isempty(alphaListInput)
+    alphaList=ones(nImgs,1);
+elseif (length(alphaListInput)==nImgs)&&isnumeric(alphaListInput)
+    alphaList=alphaListInput;
+else
+    error('provided alphaList is invalid')
+end
 
 %% check over user-supplied outColors and convert to RGB triplets (outColorsTriplet)
 outColorsUserSupplied=outColors;
@@ -296,25 +320,17 @@ for iImg=1:nImgs
 end
 
 
-%% get alphaList, which is the relative weighting of each image
-alphaList=nan(nImgs,1);
-if isempty(alphaListInput)
-    alphaList=ones(nImgs,1);
-elseif (length(alphaListInput)==nImgs)&&isnumeric(alphaListInput)
-    alphaList=alphaListInput;
-else
-    error('provided alphaList is invalid')
-end
+
 
 %% merge rescaled images into RGB
 
 imgMergedRGB=zeros(imHeight,imWidth,3);
 
 for iImg=1:nImgs
-    thisImgRescaled=imgListCurrent{iImg};
+    thisImg=imgListCurrent{iImg};
     outColorsTriplet=outColorsTripletList{iImg};
     
-    imgRescaledRGB=alphaList(iImg) * cat(3, thisImgRescaled*outColorsTriplet(1), thisImgRescaled*outColorsTriplet(2), thisImgRescaled*outColorsTriplet(3) );
+    imgRescaledRGB=alphaList(iImg) * cat(3, thisImg*outColorsTriplet(1), thisImg*outColorsTriplet(2), thisImg*outColorsTriplet(3) );
     
     imgMergedRGB=imgMergedRGB+imgRescaledRGB; % add up all the images
     
@@ -378,4 +394,61 @@ if ~isempty(boundingboxInput)
     %assert(boundingboxInput(1)+boundingboxInput(3)-1<=imWidth)
     %assert(boundingboxInput(2)+boundingboxInput(4)-1<=imHeight)
 end
+end
+
+function zplanesToGet=parseZplanes(zInp_thisIm,numZplanesInImage)
+            
+if strcmp(zInp_thisIm,'all')
+    zplanesToGet=1:numZplanesInImage;
+elseif isnumeric(zInp_thisIm)
+    zplanesToGet=zInp_thisIm;
+elseif ischar(zInp_thisIm)
+    if contains(zInp_thisIm,':')
+        zInp_thisIm_split=split(zInp_thisIm,':');
+        if length(zInp_thisIm_split)~=2 || isempty(zInp_thisIm_split{1})
+            error("trouble parsing z input %s. Try something like 'all' or '3:end' or 2 or '3:5'",zInp_thisIm)
+        end
+        
+        if isempty(zInp_thisIm_split{2})
+            zInp_thisIm_split{2}='end';
+        end
+        if strcmp(zInp_thisIm_split{2},'end')
+            zInp_thisIm_split{2}=num2str(numZplanesInImage);
+        end
+        
+        % convert to numeric
+            if ~isempty(str2num(zInp_thisIm_split{1})) && ~isempty(str2num(zInp_thisIm_split{2}))
+                zplanesToGet=str2num(zInp_thisIm_split{1}) : str2num(zInp_thisIm_split{2});
+            else
+                error("trouble parsing z input %s. Try something like 'all' or '3:end' or 2 or '3:5'",zInp_thisIm)
+            end
+    elseif ~isempty(str2num(zInp_thisIm))
+        zplanesToGet=str2num(zInp_thisIm);
+    else
+        error("trouble parsing z input %s. Try something like 'all' or '3:end' or 2 or '3:5'",zInp_thisIm)
+    end
+    
+end
+
+% check over validity of the numeric zplanesToGet
+if ~all(rem(zplanesToGet,1)==0)
+    error('not all zplanes in input were whole numbers')
+end
+
+idx_validZplanes = zplanesToGet>=1 & zplanesToGet<=numZplanesInImage;
+if sum(idx_validZplanes)~=length(zplanesToGet)
+    warning('only %i out of the %i z planes requested are valid. There are %i z planes in the image stack',sum(idx_validZplanes),length(zplanesToGet),numZplanesInImage)
+end
+if sum(idx_validZplanes)==0
+    error('no valid planes were requested in zplanes input = %s in image with %i planes',zInp_thisIm,numZplanesInImage)
+end
+zplanesToGet=zplanesToGet(idx_validZplanes);
+
+assert(size(zplanesToGet,1)==1) % must be row vector
+
+% if max(zplanesToGet)>numZplanesInImage
+%     error("the largest zplane that we're attempting to access (%i) is greater than number of planes in the image (%i)",max(zplanesToGet),numZplanesInImage)
+% end
+
+
 end

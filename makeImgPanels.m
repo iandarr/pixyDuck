@@ -24,9 +24,9 @@ ip.addParameter('scaleBarPanels',[],@(x) validateattributes(x,{'numeric','vector
 
 
 %% inputs to be passed to mergeImgsToRGB
-ip.addParameter('zplanes','all',@(x)or(strcmp('all',x),ismatrix(x),iscell(x)));
+ip.addParameter('zplanes','all',@(x) any([strcmp('all',x),ismatrix(x),iscell(x)]));
 ip.addParameter('scalingMinMax',{},@iscell)
-ip.addParameter('alphaList',[],@iscell)
+ip.addParameter('alpha',[],@iscell)
 ip.addParameter('boundingbox',[],@(x) (isnumeric(x) && isequal(size(x),[1 4])) || (iscell(x) && isvector(x)))
 ip.addParameter('convertTo','uint8',@(x) all(ismember(lower(x),{'uint16','uint8'})))
 ip.parse(varargin{:})
@@ -55,7 +55,7 @@ segmentationImgs=ip.Results.segmentationImgs;
 % inputs for mergeImgsToRGB, should be made a cell array:
 zplanes=ip.Results.zplanes;
 scalingMinMax=ip.Results.scalingMinMax;
-alphaList=ip.Results.alphaList;
+alphaList=ip.Results.alpha;
 boundingbox=ip.Results.boundingbox;
 convertTo=ip.Results.convertTo;
 
@@ -67,11 +67,19 @@ imgFiles=checkImgFilesInput(imgFiles);
 numImgPanels=size(imgFiles,2);
 maxNumImgsPerPanel=size(imgFiles,1);
 
+% related to rotateDegrees
 if isempty(rotateDegrees)
     rotateDegrees=num2cell(zeros(1,numImgPanels));
 else
-    assert(all(cellfun(@(x) isnumeric(x),rotateDegrees)))
+    assert(all(cellfun(@(x) isnumeric(x) || isscalar(x),rotateDegrees)))
+    assert(length(rotateDegrees)==numImgPanels && isvector(rotateDegrees));
 end
+for i=1:numImgPanels
+    if rem(rotateDegrees{i},90)~=0
+        error('rotateDegrees inputs must be multiples of 90')
+    end
+end
+
 
 % outColors
 if ~iscell(outColors)
@@ -169,6 +177,7 @@ elseif length(zplanes)~=numImgPanels
     error('zplanes should be nPanels x 1 cell array or 1x1 cell array to be replicated for all panels')
 end
 
+
 % scalingMinMax
 if isempty(scalingMinMax)
     scalingMinMax=repmat({{}},1,numImgPanels);
@@ -225,11 +234,16 @@ for iPanel=1:numImgPanels
         outColorsThisPanel,...
         'zplanes',zplanes{iPanel},...    
         'scalingMinMax',scalingMinMax(:,iPanel),...
-        'alphaList',alphaList{iPanel},...
+        'alpha',alphaList{iPanel},...
         'boundingbox',boundingbox{iPanel},...
         'convertTo',convertTo{iPanel});
     
-    imgMergedVector{iPanel}=imgMerged;
+    if rotateDegrees{iPanel}==0
+        imgMergedVector{iPanel}=imgMerged;
+    else
+        imgMergedVector{iPanel}=rot90(imgMerged,rotateDegrees{iPanel}/90);
+    end
+    
     scalingMinMaxVector{iPanel}=scalingMinMaxList;
 end
 
@@ -255,6 +269,10 @@ if ~isempty(segmentationImgs)
                     PixelRegion={[boundingboxThisPanel(2), boundingboxThisPanel(2)+boundingboxThisPanel(4)-1],...
                         [boundingboxThisPanel(1), boundingboxThisPanel(1)+boundingboxThisPanel(3)-1]};
             segmentationImgsArray{iSegImg}=imread(thisSegmentationImgName,'PixelRegion',PixelRegion);
+        end
+        
+        if rotateDegrees~=0
+            segmentationImgsArray{iSegImg}=rot90(segmentationImgsArray{iSegImg},rotateDegrees/90);
         end
     end
     
