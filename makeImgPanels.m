@@ -17,6 +17,8 @@ ip.addParameter('segmentationLineWidth',0.5,@(x)validateattributes(x,{'numeric'}
 ip.addParameter('segmentationCentermostOnly',false,@(x)validateattributes(x,{'logical'},{'scalar'}));
 ip.addParameter('figWidth',7.5*72,@(x)validateattributes(x,{'numeric'},{'scalar','>=',0}));
 ip.addParameter('exportFigToFile',true,@(x)validateattributes(x,{'logical'},{'scalar'}));
+ip.addParameter('exportRGBimgs',true,@(x)validateattributes(x,{'logical'},{'scalar'}));
+
 %% inputs related to scale bar
 ip.addParameter('UmPerPixel',[],@(x) validateattributes(x,{'numeric','scalar','positive'}));
 ip.addParameter('scaleBarPosition','LowerLeft',@(x) ismember(x,{'','none','LowerLeft','LowerRight','UpperLeft','UpperRight'}));
@@ -40,6 +42,8 @@ segmentationSmoothPixels=ip.Results.segmentationSmoothPixels;
 segmentationLineWidth=ip.Results.segmentationLineWidth;
 figWidth=ip.Results.figWidth;
 exportFigToFile=ip.Results.exportFigToFile;
+exportRGBimgs=ip.Results.exportRGBimgs;
+
 segmentationCentermostOnly=ip.Results.segmentationCentermostOnly;
 rotateDegrees=ip.Results.rotateDegrees;
 
@@ -330,7 +334,7 @@ for iPanel=1:numImgPanels
     %iAx=iAx+1;
     [tileRow,tileCol]=find(layoutMatrix==iPanel);
     tileNum=sub2ind(size(layoutMatrix'),tileCol,tileRow); % switched since tileindexing is rowmajor
-    ax(iPanel)=nexttile(tileNum); hold on;
+    ax(iPanel)=nexttile(t,tileNum); hold on;
     set(ax(iPanel),'FontSize',fontSize)
     %set(ax(iPanel),'PositionConstraint','innerposition')
     imgMerged=imgMergedVector{iPanel};
@@ -364,6 +368,26 @@ for iPanel=1:numImgPanels
         %yText=ylm(1)+diff(ylm)*0.05;
         %text(xText,yText,inPanelLabel,'FontSize',fontSize,'Color','w','Interpreter','none','FontWeight','bold')
         text(0.05,0.92,inPanelLabel,'Units','normalized','FontSize',fontSize,'Color','w','Interpreter','none','FontWeight','bold')
+    end
+    
+    
+    %% export Raster images to subfolder
+    if exportRGBimgs
+        strRowCol=['r',num2str(tileRow),'c', num2str(tileCol)];
+        
+        % output folder
+        [outDirParent,outPanelName,~]=fileparts(outFile);
+        imFileNameOut=[strRowCol,' ',inPanelLabel];
+        imFileNameOut=replace(imFileNameOut,{newline,char(13)},' ');
+        outSubfolderForImgs=fullfile(outDirParent,filesep,outPanelName,filesep);
+        if iPanel==1
+            if isfolder(outSubfolderForImgs)
+                rmdir(outSubfolderForImgs,'s')
+            end
+            mkdir(outSubfolderForImgs)
+        end
+        imFilePath=fullfile(outSubfolderForImgs,[imFileNameOut,'.tif']);
+        imwrite(imgMerged,imFilePath)
     end
 
 end % end iPanel loop
