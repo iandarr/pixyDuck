@@ -275,7 +275,7 @@ if ~isempty(segmentationImgs)
             segmentationImgsArray{iSegImg}=imread(thisSegmentationImgName,'PixelRegion',PixelRegion);
         end
         
-        if rotateDegrees~=0
+        if rotateDegrees{iPanel}~=0
             segmentationImgsArray{iSegImg}=rot90(segmentationImgsArray{iSegImg},rotateDegrees/90);
         end
     end
