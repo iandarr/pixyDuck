@@ -292,7 +292,7 @@ sideDirs=sp2(idxNotHorV,:)-sp1(idxNotHorV,:);
             [absErr,problemDim]=min(abs(sideDir(sideDir~=0)));
             epsAtPt=eps(xy(ind,problemDim));
             %tolerance= 200 * epsAtPt;
-            tolerance= (2^11 + 1) * epsAtPt;
+            tolerance= (2^13 + 1) * epsAtPt;
             if absErr<tolerance
                 % change value to closest original point value if it's
                 % within tolerance
