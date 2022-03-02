@@ -13,7 +13,7 @@ ip.addRequired('Nd2FilepathList',@(x) or(iscell(x),ischar(x)))
 % optional inputs, immediately fill in with defaults
 ip.addParameter('referenceRound',1,@(x) all([isnumeric(x),isscalar(x)]))
 ip.addParameter('controlPointInitialGuessesTable',[],@istable)
-ip.addParameter('numControlPointsPerRegistration',9,@(x) and(isnumeric(x),iscalar(x))) % First 4 are the 4 corners (excluding tile 1), additional are the 
+ip.addParameter('numControlPointsPerRegistration',9,@(x) and(isnumeric(x),isscalar(x))) % First 4 are the 4 corners (excluding tile 1), additional are the 
 ip.addParameter('channelLabels',[],@(x) or(iscell(x),istable(x))) % EITHER: numRoundsx1 cell array of 1xnumChannels cell arrays OR a table with VariableNames round, channel,channelLabels, and any other column with data to be associated with each channel, such as channelPrefixes
 ip.addParameter('channelLabelsExactMatchOnly',false,@islogical) % if a channelLabels table is provided: if channelLabelsExactMatchOnly==true, then the name in the channelLabels.channel variable must be an exact match with the channel in the ND2 file. If false, only must start with that channel name. Eg. the properties for Round 1 channels 'YFP' and 'YFP_1' and 'YFP_2' will all get the properties of the row with round=1 and channel='YFP'.
 
