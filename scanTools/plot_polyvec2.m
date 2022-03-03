@@ -1,6 +1,6 @@
 %%
 clear Scan
-scanDir='/Volumes/IAND_05/E159part2_scan/scan/scan1_WellA1';
+scanDir='/Volumes/IAND_07/rawData/E157part1rep2_stripping/registeredstitches/SetA_resistant';
 load(fullfile(scanDir,filesep,'ScanObject.mat'))
 %%
 clf;
@@ -11,11 +11,33 @@ tileRange=1:10;
 
 thisRound=1;
 res=1;
-polyvec=Scan.Rounds(thisRound).fullTiles.rscan.res(res).polyvec;
-pvec1=plot(ax,polyvec);
-hold on; set(ax,'YDir','reverse')
-[pvec1.FaceColor]=deal([0 1 1]); 
 labels=arrayfun(@num2str,[1:length(polyvec)]','UniformOutput',0);
+X=Scan.Rounds(1).fullTiles.rscan.res.T.CenterCol;
+Y=Scan.Rounds(1).fullTiles.rscan.res.T.CenterRow;
+text(ax,X,Y,labels,'FontSize',8)
+
+hold on; set(ax,'YDir','reverse')
+polyvec=Scan.Rounds(thisRound).fullTiles.rscan.res(res).polyvec;
+pvec1=plot(ax,polyvec,'FaceAlpha',0.1);
+[pvec1.FaceColor]=deal([1 0 0]); 
+%hold on
+%pvec2=plot(ax,Scan.Rounds(2).polyvec.regscan.FullImgs(tileRange));
+axis(ax,'equal');
+% plot round 2
+% clf;
+% fh=figure(1);
+% ax=axes(fh);
+thisRound=2;
+res=1;
+polyvec=Scan.Rounds(thisRound).fullTiles.rscan.res(res).polyvec;
+pvec2=plot(ax,polyvec,'FaceAlpha',0.1);
+[pvec2.FaceColor]=deal([0 0 1]); 
+hold on;
+
+%% plot boxes
+%plot(Scan.regions.fullTiles.innerBoxIntersect.rscan.res.polyvec)
+%plot(Scan.regions.fullTiles.outerBoxUnion.rscan.res.polyvec,'FaceAlpha',0)
+plot(Scan.Rounds(1).regions.fullTiles.innerBox.rscan.res.polyvec,'FaceAlpha',0.2)
 
 %%
 fh2=figure
