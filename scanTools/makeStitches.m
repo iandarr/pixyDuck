@@ -9,6 +9,7 @@ ip.addParameter('SubregionArray',[1 1],@(x) and(isnumeric(x),isequal(size(x),[1 
 ip.addParameter('StitchSubregionSubsetOnly',[])
 ip.addParameter('resolutions','native')
 ip.addParameter('zplanes','all',@(x) strcmp(x,'all') || (isnumeric(x)&&isvector(x)&& all(rem(x,1)==0)) )
+ip.addParameter('MaxMerge',true,@islogical)
 ip.addParameter('tileType','fullTiles',@(x) ismember(x,{'fullTile','coreTile'}))
 ip.addParameter('tiffOutParentDir',pwd,@isfolder)
 ip.addParameter('tifNameFormat',{'R','round','_','channelNames','_','channelLabels'},@iscell)
@@ -23,6 +24,7 @@ tileType=ip.Results.tileType;
 tiffOutParentDir=ip.Results.tiffOutParentDir;
 tifNameFormat=ip.Results.tifNameFormat;
 zplanes=ip.Results.zplanes;
+MaxMerge=ip.Results.MaxMerge;
 
 % get ScanBounds input
 ScanBoundsAllowable=fields(Scan.regions.(tileType));
@@ -151,6 +153,11 @@ for subregionIndex=subregionIndicesToStitch
         if strcmp(zplanes,'all')
             iZ=1:Scan.Rounds(thisRound).numZPerTile;
         end
+        if MaxMerge
+            numZstitch=1;
+        else
+            numZstitch=length(iZ);
+        end
         
         for iS=1:numResThisRound %round and res-specific coordinates loop
             iResStitch=resTable_ThisRound.iResStitch(iS);
@@ -212,10 +219,10 @@ for subregionIndex=subregionIndicesToStitch
         %isNativeRes_AllThisRound=resTable.iResScan(resTable.thisRound==thisRound)';
         
         
-        %initialize subregion stitch. 3rd dimension is channel
+        %initialize subregion stitch. 3rd dimension is z, 4th dimension is channel
         for iS=1:numResThisRound
             iResStitch=s(iS).iResStitch;
-            s(iS).subregionStitch_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols,numChannels));
+            s(iS).subregionStitch_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols,numZstitch,numChannels));
         end
         
         cameraAngleVsRefAngle=Scan.Rounds(thisRound).cameraAngleVsRefAngle;
@@ -245,7 +252,7 @@ for subregionIndex=subregionIndicesToStitch
                     img_uint16=getPlaneFromNd2file(reader, tileID, channelName,'closeReaderAfterGettingPlane',false,'iZ',iZ); % added z plane functionality
                     
                     % default behavior is to get max merge
-                    if length(iZ)>1
+                    if length(iZ)>1 && MaxMerge
                         img_uint16=max(img_uint16,[],3);
                     end
                     
@@ -256,7 +263,7 @@ for subregionIndex=subregionIndicesToStitch
                         img_uint16=flipud(img_uint16);
                     end
                     
-                    img_uint16_cropped=img_uint16(imgcoord_RowsToFill,imgcoord_ColsToFill);
+                    img_uint16_cropped=img_uint16(imgcoord_RowsToFill,imgcoord_ColsToFill,:);
                     
                     if ~isNativeRes
                         resizedRowCol=[s(iS).Tsubregion_overlapTiles.numRows(iTile),s(iS).Tsubregion_overlapTiles.numCols(iTile)];
@@ -264,7 +271,7 @@ for subregionIndex=subregionIndicesToStitch
                     end
                     
                     % fill in stitched image
-                    s(iS).subregionStitch_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill,iChannel)=img_uint16_cropped;
+                    s(iS).subregionStitch_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill,:,iChannel)=img_uint16_cropped;
                 end % end res loop
                 
             end % end channel loop
@@ -300,7 +307,14 @@ for subregionIndex=subregionIndicesToStitch
                     tiffname=['res',num2str(iResScan),'_',tiffname];
                 end
                 
-                imwrite(s(iS).subregionStitch_uint16(:,:,iChannel),fullfile(tiffOutDir,filesep,tiffname))
+                
+                for iZout=1:numZstitch
+                    if iZout==1
+                        imwrite(s(iS).subregionStitch_uint16(:,:,iZout,iChannel),fullfile(tiffOutDir,filesep,tiffname))
+                    else
+                        imwrite(s(iS).subregionStitch_uint16(:,:,iZout,iChannel),fullfile(tiffOutDir,filesep,tiffname),'WriteMode','append')
+                    end
+                end
             end
         end
         
