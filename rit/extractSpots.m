@@ -376,7 +376,7 @@ end
                         
                         distErrorXY=(TspotsThisObjThisChannel.X - TspotsThisObjThisChannel.xFitted).^2 + (TspotsThisObjThisChannel.Y - TspotsThisObjThisChannel.yFitted).^2;
                         if ~all(any([distErrorXY<4,isnan(distErrorXY)],2))
-                            error('Array %i, Obj %i, %s: at least one spot from :Spots node (regionalMaxValues) and :Fitted node has significantly different XY coordinates. Can occur if excludeSlices is different from when spot fitting was performed.',channelName,arrayNum,objNum)
+                            warning('Array %i, Obj %i, %s: at least one spot from :Spots node (regionalMaxValues) and :Fitted node has significantly different XY coordinates. Can occur if excludeSlices is different from when spot fitting was performed. Or if allowable range for gaussian fit is large',arrayNum,objNum,channelName)
                         end
                         
                     end

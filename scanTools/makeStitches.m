@@ -13,6 +13,8 @@ ip.addParameter('MaxMerge',true,@islogical)
 ip.addParameter('tileType','fullTiles',@(x) ismember(x,{'fullTile','coreTile'}))
 ip.addParameter('tiffOutParentDir',pwd,@isfolder)
 ip.addParameter('tifNameFormat',{'R','round','_','channelNames','_','channelLabels'},@iscell)
+ip.addParameter('StitchCoordsMetadataOutput',false,@islogical)
+%ip.addParameter('OutputOnlyStitchCoords',false,@islogical)
 ip.parse(varargin{:})
 
 % assign variables
@@ -25,6 +27,8 @@ tiffOutParentDir=ip.Results.tiffOutParentDir;
 tifNameFormat=ip.Results.tifNameFormat;
 zplanes=ip.Results.zplanes;
 MaxMerge=ip.Results.MaxMerge;
+StitchCoordsMetadataOutput=ip.Results.StitchCoordsMetadataOutput;
+%OutputOnlyStitchCoords=ip.Results.OutputOnlyStitchCoords;
 
 % get ScanBounds input
 ScanBoundsAllowable=fields(Scan.regions.(tileType));
@@ -144,9 +148,10 @@ for subregionIndex=subregionIndicesToStitch
         
     end
     
+    %% channel stitching and writing to .tif
+
     for thisRound=1:numRounds
         s=struct(); % this subregion, and round-specific
-        
         resTable_ThisRound=resTable(resTable.thisRound==thisRound,:);
         numResThisRound=height(resTable_ThisRound);
         
@@ -203,7 +208,7 @@ for subregionIndex=subregionIndicesToStitch
             
         end % end res-specific coordinates loop
         
-        %% get reader for this round, fill in s(iS).subregionStitch_uint16
+        % get reader for this round, fill in s(iS).subregionStitch_uint16
         reader = bfGetReader();
         reader = loci.formats.Memoizer(reader,0);
         reader.setId(Scan.Rounds(thisRound).Nd2_filepath);
@@ -223,6 +228,11 @@ for subregionIndex=subregionIndicesToStitch
         for iS=1:numResThisRound
             iResStitch=s(iS).iResStitch;
             s(iS).subregionStitch_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols,numZstitch,numChannels));
+            if StitchCoordsMetadataOutput
+                s(iS).subregionMetaImgRow_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols)); % StitchCoords Metadata: ImgRow
+                s(iS).subregionMetaImgCol_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols)); % StitchCoords Metadata: ImgCol
+                s(iS).subregionMetaImgTile_uint16=uint16(false(sAllR(iResStitch).subregion_NumRows,sAllR(iResStitch).subregion_NumCols)); % StitchCoords Metadata: ImgTile
+            end
         end
         
         cameraAngleVsRefAngle=Scan.Rounds(thisRound).cameraAngleVsRefAngle;
@@ -249,6 +259,7 @@ for subregionIndex=subregionIndicesToStitch
                     imgcoord_RowsToFill=s(iS).Timage_overlapTiles{iTile,{'TopRow'}}:s(iS).Timage_overlapTiles{iTile,{'BottomRow'}};
                     imgcoord_ColsToFill=s(iS).Timage_overlapTiles{iTile,{'LeftCol'}}:s(iS).Timage_overlapTiles{iTile,{'RightCol'}};
                     
+                    
                     img_uint16=getPlaneFromNd2file(reader, tileID, channelName,'closeReaderAfterGettingPlane',false,'iZ',iZ); % added z plane functionality
                     
                     % default behavior is to get max merge
@@ -272,9 +283,37 @@ for subregionIndex=subregionIndicesToStitch
                     
                     % fill in stitched image
                     s(iS).subregionStitch_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill,:,iChannel)=img_uint16_cropped;
+                    
+                    % METADATA
+
+                    if StitchCoordsMetadataOutput
+                        img_MetaImgRow_uint16=uint16(repmat([1:Scan.Rounds(thisRound).fullTileNumRows]',1,Scan.Rounds(thisRound).fullTileNumCols));
+                        img_MetaImgCol_uint16=uint16(repmat([1:Scan.Rounds(thisRound).fullTileNumCols] ,Scan.Rounds(thisRound).fullTileNumRows,1));
+
+                        if cameraAngleVsRefAngle~=0
+                            img_MetaImgRow_uint16=rot90(img_MetaImgRow_uint16,cameraAngleVsRefAngle/90);
+                            img_MetaImgCol_uint16=rot90(img_MetaImgCol_uint16,cameraAngleVsRefAngle/90);
+                        end
+                        if rowDimMustBeFlipped
+                            img_MetaImgRow_uint16=flipud(img_MetaImgRow_uint16);
+                            img_MetaImgCol_uint16=flipud(img_MetaImgCol_uint16);
+                        end
+                        img_MetaImgRow_uint16_cropped=img_MetaImgRow_uint16(imgcoord_RowsToFill,imgcoord_ColsToFill,:);
+                        img_MetaImgCol_uint16_cropped=img_MetaImgCol_uint16(imgcoord_RowsToFill,imgcoord_ColsToFill,:);
+
+                        s(iS).subregionMetaImgRow_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill)=img_MetaImgRow_uint16_cropped;
+                        s(iS).subregionMetaImgCol_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill)=img_MetaImgCol_uint16_cropped;
+                        s(iS).subregionMetaImgTile_uint16(subregioncoord_RowsToFill,subregioncoord_ColsToFill)=repmat(tileID,size(img_MetaImgRow_uint16_cropped));
+                    end
+                    %% If StitchCoordsMetadataOutput
+
+
+
+
                 end % end res loop
                 
             end % end channel loop
+            
             
         end % end tile loop
         
@@ -315,10 +354,29 @@ for subregionIndex=subregionIndicesToStitch
                         imwrite(s(iS).subregionStitch_uint16(:,:,iZout,iChannel),fullfile(tiffOutDir,filesep,tiffname),'WriteMode','append')
                     end
                 end
+
+            end % end channels
+            % Metadata write
+            if StitchCoordsMetadataOutput
+                % decide on a prefix to designate the round (+/- resolution)
+                listOfChannelTiffNames=[sTiffFileNames(thisRound).tifNames(:)];
+                firstUnderscores=cell2mat(cellfun(@(x) x(1),strfind(listOfChannelTiffNames,'_'),'UniformOutput',false));
+                if all(firstUnderscores(1)==firstUnderscores)
+                    temp=listOfChannelTiffNames{1};
+                    metadataTiffPrefix=temp(1:firstUnderscores(1));
+                else
+                    metadataTiffPrefix='R'&num2str(thisRound)&'_';
+                end
+                if numResStitch>1
+                    metadataTiffPrefix=['res',num2str(iResScan),'_',metadataTiffPrefix];
+                end
+
+                imwrite(s(iS).subregionMetaImgRow_uint16,fullfile(tiffOutDir,filesep,[metadataTiffPrefix,'ImgRow.tif']));
+                imwrite(s(iS).subregionMetaImgCol_uint16,fullfile(tiffOutDir,filesep,[metadataTiffPrefix,'ImgCol.tif']));
+                imwrite(s(iS).subregionMetaImgTile_uint16,fullfile(tiffOutDir,filesep,[metadataTiffPrefix,'ImgTile.tif']));
             end
-        end
         
-    end % end round loop
+    end % end round loop for stitching channels
     
 end % end subregion loop
 
