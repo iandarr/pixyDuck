@@ -18,9 +18,6 @@ tools.navigator.tryToGoToArray(arrayNum)
 tools.navigator.tryToGoToObj(objNum)
 
 
-tools.navigator.tryToGoToArray(arrayNum);
-tools.navigator.tryToGoToObj(objNum);
-
 % get mask
 mask=tools.objectHandle.getMask;
 
@@ -56,8 +53,9 @@ end
 %spotRowColZ=[spotRows,spotCols,spotsZ];
 
 
-imgPath=fullfile(imgDir,[channel,sprintf('%03i',arrayNum),'.tif']);
-
+%imgPath=fullfile(imgDir,[channel,sprintf('%03i',arrayNum),'.tif']);
+imgFileName=tools.objectHandle.getImageFileName(channel);
+imgPath=fullfile(imgDir,filesep,imgFileName);
             numZplanesInImage=length(imfinfo(imgPath));
             if strcmp(zplanesInput,'all')
                 zplanesToGet=1:numZplanesInImage;

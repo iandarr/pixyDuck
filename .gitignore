@@ -1,3 +1,9 @@
 
 makeImgPanels.asv
 *.asv
+*.nd2
+*.tif
+workedExamplesData/Ex1/exForRyan.m
+workedExamplesData/Ex1/ScanObject1a.mat
+workedExamplesData/Ex1/ScanObject1b.mat
+workedExamplesData/Ex1/Tchan.csv

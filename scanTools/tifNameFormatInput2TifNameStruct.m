@@ -54,6 +54,10 @@ for thisRound=1:numRounds
 end
 numUniqueTifNames=length(unique(allTiffNameVect));
 if numUniqueTifNames<length(allTiffNameVect)
-    error('makesStitches: user-input tifNameFormat does not result in unique tif filenames')
-    
+    fprintf('based on tifNameFormat, these would be output tif file names. They are NOT unique. This is not allowed. Change tifNameFormat input to make them unique or do not input tifNameFormat to use defaults\n');
+    fprintf('%s\n',allTiffNameVect{:})
+    error('makesStitches: user-input tifNameFormat does not result in unique tif filenames')    
+else
+    fprintf('based on tifNameFormat, these will be the output tif file names:\n');
+    fprintf('%s\n',allTiffNameVect{:})
 end

@@ -1,0 +1,5 @@
+From E157 stage 1:
+cycle1 20X = E157s1 w1
+cycle1 60X = E157s2 w1
+Cycle1s 20X = E157s3 w1
+cycle1s 60X = E157s4 w1
