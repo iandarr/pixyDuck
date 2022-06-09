@@ -16,12 +16,12 @@ ip.addParameter('controlPointInitialGuessesTable',[],@istable)
 ip.addParameter('numControlPointsPerRegistration',9,@(x) and(isnumeric(x),isscalar(x))) % First 4 are the 4 corners (excluding tile 1), additional are the 
 ip.addParameter('channelLabels',[],@(x) or(iscell(x),istable(x))) % EITHER: numRoundsx1 cell array of 1xnumChannels cell arrays OR a table with VariableNames round, channel,channelLabels, and any other column with data to be associated with each channel, such as channelPrefixes
 ip.addParameter('channelLabelsExactMatchOnly',false,@islogical) % if a channelLabels table is provided: if channelLabelsExactMatchOnly==true, then the name in the channelLabels.channel variable must be an exact match with the channel in the ND2 file. If false, only must start with that channel name. Eg. the properties for Round 1 channels 'YFP' and 'YFP_1' and 'YFP_2' will all get the properties of the row with round=1 and channel='YFP'.
+ip.addParameter('skipGetInnerBox',false,@(x) islogical(x)|isnumeric(x))
 
 % optional inputs, determine values later on (leave empty for now)
 ip.addParameter('cameraAngleOfReferenceRound',[],@(x) all([isnumeric(x),x>=-180,x<=360]))
 ip.addParameter('rowDimIsFlippedVsYDim',[],@(x) and(size(x,2)==1,all(any([x==1,x==0],2))));
 ip.addParameter('registrationRoundPairs',[],@(x) and(isnumeric(x),size(x,2)==2))
-ip.addParameter('registrationNumControlPointsToUse',4,@isstruct)
 ip.addParameter('cameraOrientationSettings',struct(),@isstruct)
 ip.addParameter('registrationSettings',struct(),@isstruct)
 
@@ -35,7 +35,7 @@ Nd2FilepathList=ip.Results.Nd2FilepathList;
 % optional inputs, immediately fill in with defaults
 referenceRound=ip.Results.referenceRound;
 controlPointInitialGuessesTable=ip.Results.controlPointInitialGuessesTable;
-
+skipGetInnerBox=ip.Results.skipGetInnerBox;
 
 % optional inputs, determine values later on (leave empty for now)
 cameraAngleOfReferenceRound=ip.Results.cameraAngleOfReferenceRound;
@@ -398,10 +398,14 @@ for iRes=1:Scan.numRes
         
         % store the largest contained box region associated with this round
         fprintf('getting InnerBox region for round %i \n',thisRound);
-        Tbox=getInnerBoxFromPolyvec(Scan.Rounds(thisRound).fullTiles.rscan.res(iRes).polyvec);
-        Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).T=Tbox;
-        Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).polyvec=RowColStartEnd2polyshape(Tbox.TopRow,Tbox.BottomRow,Tbox.LeftCol,Tbox.RightCol);
-        
+        if (skipGetInnerBox==false) && ismember(thisRound,skipGetInnerBox)
+            Tbox=getInnerBoxFromPolyvec(Scan.Rounds(thisRound).fullTiles.rscan.res(iRes).polyvec);
+            Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).T=Tbox;
+            Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).polyvec=RowColStartEnd2polyshape(Tbox.TopRow,Tbox.BottomRow,Tbox.LeftCol,Tbox.RightCol);
+            Scan.Rounds(thisRound).hasInnerBox=true;
+        else
+            Scan.Rounds(thisRound).hasInnerBox=false;
+        end
         %         image coordinates
                                               %T=getFullTileImageTable(tileIDs,numImgRows,numImgCols,cameraAngleVsRefAngle,rowDimIsFlippedVsYDim_refRound,rowDimIsFlippedVsYDim_thisRound)
         %Scan.Rounds(thisRound).fullTiles.image.T=getFullTileImageTable(tileIDs,numImgRows,numImgCols,cameraAngleVsRefAngle,rowDimIsFlippedVsYDim_refRound,rowDimIsFlippedVsYDim_thisRound);
@@ -427,15 +431,16 @@ for iRes=1:Scan.numRes
     Scan.regions.fullTiles.outerBoxUnion.rscan.res(iRes).polyvec=RowColStartEnd2polyshape(TboxUnion.TopRow,TboxUnion.BottomRow,TboxUnion.LeftCol,TboxUnion.RightCol);
     
     % innerBox
-    TinnerBoxAllRound=table();
-    for thisRound=1:numRounds
-        TinnerBoxAllRound=[TinnerBoxAllRound;Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).T];
+    if all(Scan.Rounds(thisRound).hasInnerBox)
+        TinnerBoxAllRound=table();
+        for thisRound=1:numRounds
+            TinnerBoxAllRound=[TinnerBoxAllRound;Scan.Rounds(thisRound).regions.fullTiles.innerBox.rscan.res(iRes).T];
+        end
+        % get innerBox Intersection
+        TboxIntersect=getBoxIntersection(TinnerBoxAllRound);
+        Scan.regions.fullTiles.innerBoxIntersect.rscan.res(iRes).T=      TboxIntersect;
+        Scan.regions.fullTiles.innerBoxIntersect.rscan.res(iRes).polyvec=RowColStartEnd2polyshape(TboxIntersect.TopRow,TboxIntersect.BottomRow,TboxIntersect.LeftCol,TboxIntersect.RightCol);
     end
-    % get innerBox Intersection
-    TboxIntersect=getBoxIntersection(TinnerBoxAllRound);
-    Scan.regions.fullTiles.innerBoxIntersect.rscan.res(iRes).T=      TboxIntersect;
-    Scan.regions.fullTiles.innerBoxIntersect.rscan.res(iRes).polyvec=RowColStartEnd2polyshape(TboxIntersect.TopRow,TboxIntersect.BottomRow,TboxIntersect.LeftCol,TboxIntersect.RightCol);
-
 end
 
 end
